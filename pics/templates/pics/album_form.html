@@ -1,0 +1,15 @@
+{% extends "pics/base.html" %}
+{% block content %}
+<form method="post">{% csrf_token %}
+<p>Year: {{ year }}</p>
+{{ form.as_p }}
+<input type="submit" value="Create/update" />
+</form>
+{% if album %}
+<form method="post" enctype="multipart/form-data" action="{% url 'image_upload' year=year.slug album=album.slug %}">{% csrf_token %}
+<input type="file" name="image" />
+<input type="submit" value="Upload" />
+</form>
+{% endif %}
+
+{% endblock %}
