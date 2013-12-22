@@ -51,5 +51,22 @@ class Image(models.Model):
     def get_image_url(self):
         return default_storage.url(self.get_local_path())
 
+    @property
+    def exif_datetime(self):
+        try:
+            with default_storage.open(self.get_local_path()) as f:
+                with Image(file=f) as img:
+                    return img.metadata['exif:DateTimeOriginal']
+        except FileNotFoundError:
+            return None
+
+    @property
+    def mtime(self):
+        try:
+            return default_storage.modified_time(self.get_local_path())
+        except FileNotFoundError:
+            return None
+
     class Meta:
         ordering = ('position',)
+        unique_together = (('album', 'filename'),)

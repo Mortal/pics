@@ -1,0 +1,25 @@
+{% extends "pics/base.html" %}
+{% block content %}
+<h1>{{ year }}</h1>
+<h2>{{ album }}</h2>
+<p><a href="{% url 'album_update' year=year.slug album=album.slug %}">Edit...</a></p>
+<table class="images">
+<thead>
+<tr>
+<th>Name</th>
+<th>EXIF date</th>
+<th>Last modified</th>
+</tr>
+</thead>
+<tbody>
+{% for image in image_list %}
+<tr>
+<td><a href="{{ image.get_image_url }}" target="_blank">
+        {{ image.filename }}</a></td>
+<td>{{ image.exif_datetime }}</td>
+<td>{{ image.mtime }}</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+{% endblock %}

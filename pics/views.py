@@ -4,6 +4,8 @@ from django.core.urlresolvers import reverse
 from django import forms
 from django.core.files.storage import default_storage
 import os
+from django.db import transaction
+import json
 
 class AlbumForm(forms.ModelForm):
     class Meta:
@@ -28,6 +30,9 @@ class ImageListView(ListView):
         return Image.objects.filter(
                 album__slug=self.kwargs['album'],
                 album__year__slug=self.kwargs['year'])
+
+class ImageTableView(ImageListView):
+    template_name = 'pics/image_table.html'
 
 class SingleAlbumMixin(object):
     def get_year(self):
@@ -110,3 +115,21 @@ class ImageUploadView(FormView):
         i = Image(album=album, position=0, filename=file_name)
         i.save()
         return super(ImageUploadView, self).form_valid(form)
+
+def AjaxResponse(payload, **kwargs):
+    return HttpResponse(json.dumps(payload), **kwargs)
+
+def AjaxBadRequest(error_message):
+    return AjaxResponse({'error': error_message}, content_type='application/json', status_code=400)
+
+def AjaxResponseOK():
+    # 204 No Content
+    return HttpResponse(status_code=204)
+
+class ImageRepositionView(View):
+    def post(self, request):
+        try:
+            images = list(int(x) for x in request.POST['images'].split(','))
+        except (KeyError, ValueError):
+            return AjaxBadRequest('Incorrect or missing "images"')
+        return AjaxResponseOK()

@@ -6,7 +6,7 @@ from django.contrib import admin
 admin.autodiscover()
 
 from .views import (
-        ImageListView, AlbumListView,
+        ImageListView, ImageTableView, AlbumListView,
         YearCreateView, YearUpdateView,
         AlbumCreateView, AlbumUpdateView,
         ImageUploadView,
@@ -26,4 +26,5 @@ urlpatterns = patterns('',
     url(r'^(?P<year>\w+)/(?P<album>\w+)/edit/$', AlbumUpdateView.as_view(), name='album_update'),
     url(r'^(?P<year>\w+)/(?P<album>\w+)/upload/$', ImageUploadView.as_view(), name='image_upload'),
     url(r'^(?P<year>\w+)/(?P<album>\w+)/$', ImageListView.as_view(), name='pics_album'),
+    url(r'^(?P<year>\w+)/(?P<album>\w+)/table/$', ImageTableView.as_view(), name='image_table'),
 ) + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
