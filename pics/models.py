@@ -10,6 +10,9 @@ class Year(models.Model):
     def __unicode__(self):
         return self.name
 
+    def get_local_directory(self):
+        return 'images/%s-%s' % (self.number, self.slug)
+
     class Meta:
         ordering = ('number',)
 
@@ -25,8 +28,10 @@ class Album(models.Model):
                     'album': self.slug})
 
     def get_local_directory(self):
-        # TODO
-        pass
+        return '%s/%s-%s' % (
+                self.year.get_local_directory(),
+                self.number,
+                self.slug)
 
     def __unicode__(self):
         return self.name
@@ -39,6 +44,12 @@ class Image(models.Model):
     album = models.ForeignKey(Album)
     position = models.IntegerField()
     filename = models.CharField(max_length=40)
+
+    def get_local_path(self):
+        return '%s/%s' % (self.album.get_local_directory(), self.filename)
+
+    def get_image_url(self):
+        return default_storage.url(self.get_local_path())
 
     class Meta:
         ordering = ('position',)

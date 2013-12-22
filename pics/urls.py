@@ -1,3 +1,5 @@
+from django.conf import settings
+from django.conf.urls.static import static
 from django.conf.urls import patterns, include, url
 
 from django.contrib import admin
@@ -24,4 +26,4 @@ urlpatterns = patterns('',
     url(r'^(?P<year>\w+)/(?P<album>\w+)/edit/$', AlbumUpdateView.as_view(), name='album_update'),
     url(r'^(?P<year>\w+)/(?P<album>\w+)/upload/$', ImageUploadView.as_view(), name='image_upload'),
     url(r'^(?P<year>\w+)/(?P<album>\w+)/$', ImageListView.as_view(), name='pics_album'),
-)
+) + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

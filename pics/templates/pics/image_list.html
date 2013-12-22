@@ -5,7 +5,7 @@
 <p><a href="{% url 'album_update' year=year.slug album=album.slug %}">Edit...</a></p>
 <ul class="images">
 {% for image in image_list %}
-<li>{{ image.filename }}</li>
+<li><img src="{{ image.get_image_url }}"></li>
 {% endfor %}
 </ul>
 {% endblock %}

@@ -2,6 +2,8 @@ from django.views.generic import ListView, UpdateView, CreateView, FormView
 from .models import Year, Album, Image
 from django.core.urlresolvers import reverse
 from django import forms
+from django.core.files.storage import default_storage
+import os
 
 class AlbumForm(forms.ModelForm):
     class Meta:
@@ -17,7 +19,9 @@ class ImageListView(ListView):
     def get_context_data(self, **kwargs):
         context_data = super(ImageListView, self).get_context_data(**kwargs)
         context_data['year'] = Year.objects.get(slug=self.kwargs['year'])
-        context_data['album'] = Album.objects.get(slug=self.kwargs['album'])
+        context_data['album'] = Album.objects.get(
+                year__slug=self.kwargs['year'],
+                slug=self.kwargs['album'])
         return context_data
 
     def get_queryset(self):
@@ -83,5 +87,26 @@ class ImageUploadForm(forms.Form):
 class ImageUploadView(FormView):
     form_class = ImageUploadForm
 
+    def get_album(self):
+        return Album.objects.get(
+                year__slug=self.kwargs['year'],
+                slug=self.kwargs['album'])
+
+    def get_success_url(self):
+        album = self.get_album()
+        return reverse('album_update', kwargs={
+            'year': album.year.slug,
+            'album': album.slug})
+
     def form_valid(self, form):
-        image =
+        album = self.get_album()
+        directory = album.get_local_directory()
+        f = form.cleaned_data['image']
+        filename = default_storage.get_valid_name(f.name)
+        path = '%s/%s' % (directory, filename)
+        path = default_storage.save(path, f)
+        dir_name, file_name = os.path.split(path)
+        assert dir_name == directory
+        i = Image(album=album, position=0, filename=file_name)
+        i.save()
+        return super(ImageUploadView, self).form_valid(form)
