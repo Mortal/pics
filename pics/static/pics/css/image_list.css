@@ -12,6 +12,7 @@
     float: left;
     border: 1px solid #cccccc;
     background-color: #f8f8f8;
+    position: relative;
 }
 .imagegrid .placeholder {
     background-color: white;
@@ -24,3 +25,16 @@
     max-height: 200px;
     margin: -1px;
 }
+
+.progressoverlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 200px;
+    height: 200px;
+    background-color: rgba(255,255,255,0.7);
+    line-height: 200px;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+};

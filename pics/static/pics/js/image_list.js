@@ -129,23 +129,162 @@ function make_image_placeholder(file) {
 
 var readingQueue = new Queue();
 var reader = new FileReader();
+var isReading = false;
 reader.onload = function(e) {
   var img = readingQueue.top().img;
   img.src = reader.result;
   readingQueue.pop();
+  isReading = false;
   read_next_image();
 };
 
 function read_next_image() {
-  if (readingQueue.empty()) return;
+  if (isReading || readingQueue.empty()) return;
+  isReading = true;
   var file = readingQueue.top().file;
   reader.readAsDataURL(file);
 }
 
 function read_image_into(file, img) {
-  var kickstart = readingQueue.empty();
   readingQueue.push({file: file, img: img});
-  if (kickstart) read_next_image();
+  read_next_image();
+}
+
+var uploadtasks = [];
+var isUploading = false;
+
+function get_next_upload_task_index() {
+  var imagegrid = document.getElementsByClassName('imagegrid')[0];
+  var uploadIndex = null;
+  for (element = imagegrid.firstChild; element != null; element = element.nextSibling) {
+    if (element.nodeType != 1) continue;
+    if (!element.hasAttribute('data-uploadindex')) continue;
+    uploadIndex = element.getAttribute('data-uploadindex');
+    break;
+  }
+  return uploadIndex;
+}
+
+function upload_next() {
+  if (isUploading) return;
+  isUploading = true;
+
+  var uploadIndex = get_next_upload_task_index();
+  if (uploadIndex == null) return;
+  var task = uploadtasks[uploadIndex];
+  var fd = new FormData();
+  fd.append('image', task.file, task.file.name);
+  var jqXHR = $.ajax({
+    url: 'upload/?ajax=1',
+    data: fd,
+    processData: false,
+    contentType: false,
+    type: 'POST',
+    dataType: 'json',
+    xhrFields: {
+      onprogress: function (e) {
+        if (e.lengthComputable) {
+          task.progress.set(e.loaded, e.total);
+        }
+      }
+    },
+    success: function (data) {
+      task.done(data);
+      isUploading = false;
+      upload_next();
+    },
+    error: function (jqXHR, textStatus, errorThrown) {
+      task.set_failed_status(textStatus);
+      isUploading = false;
+      upload_next();
+    }
+  });
+  /*
+  var xhr = new XMLHttpRequest();
+  xhr.open('POST', 'upload/', true);
+  xhr.onreadystatechange = function () {
+    if (xhr.readyState == 4) {
+      if (xhr.status == 200) {
+        var data = JSON.parse(xhr.responseText);
+        task.done(data);
+      } else {
+        task.set_failed_status(xhr.status);
+      }
+      uploadtasks[uploadIndex] = null;
+      upload_next();
+    }
+  };
+  xhr.upload.addEventListener('progress', function (e) {
+    if (!e.lengthComputable) return;
+    var progress = e.loaded / e.total;
+    task.set_progress(progress);
+  }, false);
+  xhr.send(fd);
+  */
+}
+
+function ProgressElement() {
+  var el = this.element = document.createElement('progress');
+}
+
+ProgressElement.prototype.set = function ProgressElement_set(loaded, total) {
+  this.element.max = total;
+  this.element.value = loaded;
+};
+
+function UploadTask(file, element) {
+  this.file = file;
+  this.element = element;
+
+  this.progress = new ProgressElement();
+
+  this.progressOverlay = document.createElement('div');
+  this.progressOverlay.className = 'progressoverlay';
+  this.progressOverlay.appendChild(this.progress.element);
+  this.element.appendChild(this.progressOverlay);
+}
+
+UploadTask.prototype.set_failed_status = function UploadTask_set_failed_status(status) {
+  this.progressOverlay.textContent = "Failed: "+status;
+  this.remove_from_upload_queue();
+};
+
+UploadTask.prototype.done = function UploadTask_done(data) {
+  if (data.length == 0) {
+    console.log("UploadTask_done: no data");
+    return;
+  }
+  if (data.length > 1) {
+    console.log("UploadTask_done: too much data");
+  }
+  var imageData = data[0];
+  var pk = imageData['pk'];
+  var filename = imageData['filename'];
+  var originalFilename = imageData['original_filename'];
+  if (originalFilename != this.file.name) {
+    console.log("UploadTask_done: wrong original filename");
+  }
+  this.element.setAttribute('data-pk', pk);
+  this.element.removeChild(this.progressOverlay);
+  this.progress = null;
+  this.remove_from_upload_queue();
+};
+
+UploadTask.prototype.remove_from_upload_queue = function UploadTask_remove() {
+  if (!this.element.hasAttribute('data-uploadindex')) {
+    console.log("UploadTask.remove_from_upload_queue: not in queue?");
+    return;
+  }
+  var uploadIndex = this.element.getAttribute('data-uploadindex');
+  this.element.removeAttribute('data-uploadindex');
+  uploadtasks[uploadIndex] = null;
+};
+
+function upload_image(file, element) {
+  var task = new UploadTask(file, element);
+  element.setAttribute('data-uploadindex', uploadtasks.length);
+  uploadtasks.push(task);
+  upload_next();
 }
 
 function handle_files(files) {
@@ -154,5 +293,6 @@ function handle_files(files) {
     if (!is_image(file)) continue;
     var img = make_image_placeholder(file);
     read_image_into(file, img);
+    upload_image(file, img.parentNode);
   }
 }
