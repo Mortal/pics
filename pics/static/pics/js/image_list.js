@@ -51,6 +51,25 @@ $.ajaxSetup({
 // end snippet from Django
 ///////////////////////////////////////////////////////////////////////////////
 
+
+///////////////////////////////////////////////////////////////////////////////
+// Wrapper of DOM element displaying progress.
+
+function ProgressElement() {
+  var el = this.element = document.createElement('progress');
+}
+
+ProgressElement.prototype.set = function ProgressElement_set(loaded, total) {
+  this.element.max = total;
+  this.element.value = loaded;
+};
+///////////////////////////////////////////////////////////////////////////////
+
+
+///////////////////////////////////////////////////////////////////////////////
+// Wrapper of DOM element displaying an image thumbnail.
+// Should be displayed in an <ul class=imagegrid>.
+
 function Image(element) {
   if (element == null) {
     var img = document.createElement('img');
@@ -59,6 +78,8 @@ function Image(element) {
   }
   this.element = element;
   this.imgElement = element.querySelector('img');
+  this.progressOverlay = null;
+  this.progress = null;
 }
 
 function get_data_attribute(attribute) {
@@ -88,6 +109,36 @@ Image.prototype.set_filename = set_data_attribute('filename');
 Image.prototype.get_uploadindex = get_data_attribute('uploadindex');
 Image.prototype.set_uploadindex = set_data_attribute('uploadindex');
 
+Image.prototype.set_image = function (url) {
+  this.imgElement.src = url;
+};
+
+Image.prototype.remove_progress_overlay = function () {
+  if (this.progressOverlay == null) return;
+  this.element.removeChild(this.progressOverlay);
+  this.progressOverlay = null;
+  this.progress = null;
+};
+
+Image.prototype.add_progress_overlay = function () {
+  this.remove_progress_overlay();
+  this.progress = new ProgressElement();
+  this.progressOverlay = document.createElement('div');
+  this.progressOverlay.className = 'progressoverlay';
+  this.progressOverlay.appendChild(this.progress.element);
+  this.image.element.appendChild(this.progressOverlay);
+};
+
+///////////////////////////////////////////////////////////////////////////////
+
+
+function make_image_placeholder(file) {
+  var img = new Image();
+  document.getElementsByClassName('imagegrid')[0].appendChild(img.element);
+  img.set_filename(file.name);
+  return img;
+}
+
 function get_images() {
   var imagegrid = document.getElementsByClassName('imagegrid')[0];
   var result = [];
@@ -109,6 +160,10 @@ function post_positions() {
   $.post('reorder/', {'images': pks.join(',')});
 }
 
+///////////////////////////////////////////////////////////////////////////////
+
+
+// Make imagegrid sortable
 $(function () {
   $(".imagegrid").sortable({
     'placeholder': 'placeholder',
@@ -116,43 +171,24 @@ $(function () {
   });
 });
 
-/*
-function PriorityList(n) {
-  this._n = n;
-  this._values = new Array(n);
-  this._topprio = n;
-}
-PriorityList.prototype.set = function PriorityList_set(priority, value) {
-  this._values[priority] = value;
-  this._topprio = Math.min(this._topprio, priority);
-  while (this._topprio < this._n && this._values[this._topprio] == null) {
-    this._topprio++;
-  }
-};
-PriorityList.prototype.top = function PriorityList_top() {
-  if (this._topprio == this._n) return null;
-  else return this._values[this._topprio];
-};
 
-var currentFocus = new PriorityList(2);
-$('.imagegrid li').on('mouseover', function () {
-  currentFocus.set(0, this);
-});
-$(window).on('keypress', function (ev) {
-  if (ev.charCode == 'j'.charCodeAt(0)) {
-    //currentFocus.set(
-  }
-});
-*/
+///////////////////////////////////////////////////////////////////////////////
+// Simple generic queue data structure
 
 function Queue() {
   this.q = [];
   this.head = 0;
 }
 
-Queue.prototype.empty = function Queue_empty() { return this.head == this.q.length; };
-Queue.prototype.top = function Queue_top() { return this.empty() ? null : this.q[this.head]; };
-Queue.prototype.push = function Queue_push(v) { this.q.push(v); };
+Queue.prototype.empty = function Queue_empty() {
+  return this.head == this.q.length;
+};
+Queue.prototype.top = function Queue_top() {
+  return this.empty() ? null : this.q[this.head];
+};
+Queue.prototype.push = function Queue_push(v) {
+  this.q.push(v);
+};
 Queue.prototype.pop = function Queue_pop() {
   if (this.empty()) return;
   if (++this.head == this.q.length) {
@@ -161,23 +197,26 @@ Queue.prototype.pop = function Queue_pop() {
   }
 };
 
+///////////////////////////////////////////////////////////////////////////////
+
+
+///////////////////////////////////////////////////////////////////////////////
+// The first part of asynchronous image upload is reading the files from local
+// disk and displaying their thumbnails.
+// For this we have a queue of files to read and display.
+// The readingQueue is a queue of dicts containing an img (Image)
+// and file (DOM File).
+
 function is_image(file) {
   return file.type.match(/^image\//);
-}
-
-function make_image_placeholder(file) {
-  var img = new Image();
-  document.getElementsByClassName('imagegrid')[0].appendChild(img.element);
-  img.set_filename(file.name);
-  return img;
 }
 
 var readingQueue = new Queue();
 var reader = new FileReader();
 var isReading = false;
 reader.onload = function(e) {
-  var img = readingQueue.top().img.imgElement;
-  img.src = reader.result;
+  var img = readingQueue.top().img;
+  img.set_image(reader.result);
   readingQueue.pop();
   isReading = false;
   read_next_image();
@@ -194,6 +233,15 @@ function read_image_into(file, img) {
   readingQueue.push({file: file, img: img});
   read_next_image();
 }
+
+///////////////////////////////////////////////////////////////////////////////
+
+
+///////////////////////////////////////////////////////////////////////////////
+// The next part is actually doing HTTP POSTs to upload each image.
+// Even though the server side supports multiple images in a single POST,
+// we only upload a single image at a time so we can provide progress
+// information.
 
 var uploadtasks = [];
 var isUploading = false;
@@ -263,53 +311,16 @@ function upload_next() {
       upload_next();
     }
   });
-  /*
-  var xhr = new XMLHttpRequest();
-  xhr.open('POST', 'upload/', true);
-  xhr.onreadystatechange = function () {
-    if (xhr.readyState == 4) {
-      if (xhr.status == 200) {
-        var data = JSON.parse(xhr.responseText);
-        task.done(data);
-      } else {
-        task.set_failed_status(xhr.status);
-      }
-      uploadtasks[uploadIndex] = null;
-      upload_next();
-    }
-  };
-  xhr.upload.addEventListener('progress', function (e) {
-    if (!e.lengthComputable) return;
-    var progress = e.loaded / e.total;
-    task.set_progress(progress);
-  }, false);
-  xhr.send(fd);
-  */
 }
-
-function ProgressElement() {
-  var el = this.element = document.createElement('progress');
-}
-
-ProgressElement.prototype.set = function ProgressElement_set(loaded, total) {
-  this.element.max = total;
-  this.element.value = loaded;
-};
 
 function UploadTask(file, image) {
   this.file = file;
   this.image = image;
-
-  this.progress = new ProgressElement();
-
-  this.progressOverlay = document.createElement('div');
-  this.progressOverlay.className = 'progressoverlay';
-  this.progressOverlay.appendChild(this.progress.element);
-  this.image.element.appendChild(this.progressOverlay);
+  this.image.add_progress_overlay();
 }
 
 UploadTask.prototype.set_failed_status = function UploadTask_set_failed_status(status) {
-  this.progressOverlay.textContent = "Failed: "+status;
+  this.image.progressOverlay.textContent = "Failed: "+status;
   this.remove_from_upload_queue();
 };
 
@@ -330,9 +341,8 @@ UploadTask.prototype.done = function UploadTask_done(data) {
     console.log("UploadTask_done: wrong original filename");
   }
   this.image.set_pk(pk);
-  this.image.element.removeChild(this.progressOverlay);
-  this.image.imgElement.src = thumbnail;
-  this.progress = null;
+  this.image.set_image(thumbnail);
+  this.image.remove_progress_overlay();
   this.remove_from_upload_queue();
 };
 
@@ -353,6 +363,13 @@ function upload_image(file, image) {
   upload_next();
 }
 
+///////////////////////////////////////////////////////////////////////////////
+
+
+///////////////////////////////////////////////////////////////////////////////
+// Tying it all together: Given an <input type=file multiple>, we display
+// thumbnails of all the selected images and upload them to the server.
+
 function handle_files(filesField) {
   var files = filesField.files;
   for (var i = 0, l = files.length; i < l; ++i) {
@@ -362,5 +379,7 @@ function handle_files(filesField) {
     read_image_into(file, img);
     upload_image(file, img);
   }
+
+  // Reset file selection so we don't select the same files multiple times.
   filesField.form.reset();
 }
