@@ -165,10 +165,29 @@ function get_next_upload_task_index() {
   return uploadIndex;
 }
 
+function update_upload_progress() {
+  var imagegrid = document.getElementsByClassName('imagegrid')[0];
+  var remaining = 0;
+  for (element = imagegrid.firstChild; element != null; element = element.nextSibling) {
+    if (element.nodeType != 1) continue;
+    if (element.hasAttribute('data-uploadindex')) ++remaining;
+  }
+  var state;
+  if (remaining == 0) {
+    state = 'All images have been uploaded';
+  } else if (remaining == 1) {
+    state = 'Uploading: 1 image remaining';
+  } else {
+    state = 'Uploading: '+remaining+' images remaining';
+  }
+  document.getElementById('upload_progress').textContent = state;
+}
+
 function upload_next() {
   if (isUploading) return;
   isUploading = true;
 
+  update_upload_progress();
   var uploadIndex = get_next_upload_task_index();
   if (uploadIndex == null) return;
   var task = uploadtasks[uploadIndex];
@@ -261,11 +280,13 @@ UploadTask.prototype.done = function UploadTask_done(data) {
   var pk = imageData['pk'];
   var filename = imageData['filename'];
   var originalFilename = imageData['original_filename'];
+  var thumbnail = imageData['thumbnail'];
   if (originalFilename != this.file.name) {
     console.log("UploadTask_done: wrong original filename");
   }
   this.element.setAttribute('data-pk', pk);
   this.element.removeChild(this.progressOverlay);
+  this.element.querySelector('img').src = thumbnail;
   this.progress = null;
   this.remove_from_upload_queue();
 };
@@ -287,7 +308,8 @@ function upload_image(file, element) {
   upload_next();
 }
 
-function handle_files(files) {
+function handle_files(filesField) {
+  var files = filesField.files;
   for (var i = 0, l = files.length; i < l; ++i) {
     var file = files[i];
     if (!is_image(file)) continue;
@@ -295,4 +317,5 @@ function handle_files(files) {
     read_image_into(file, img);
     upload_image(file, img.parentNode);
   }
+  filesField.form.reset();
 }

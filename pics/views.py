@@ -63,6 +63,12 @@ class AlbumUpdateView(UpdateView, SingleAlbumMixin):
                 year__slug=self.kwargs['year'],
                 slug=self.kwargs['album'])
 
+    def form_valid(self, form):
+        album = form.save()
+        for image in album.image_set.all():
+            image.ensure_thumbnail()
+        return super(AlbumUpdateView, self).form_valid(form)
+
 class YearCreateView(CreateView):
     model = Year
 
@@ -135,7 +141,8 @@ class ImageUploadView(View):
             i = Image(album=album, position=position, filename=file_name)
             position += 1
             i.save()
-            result.append({'pk': i.pk, 'filename': i.filename, 'original_filename': f.name})
+            i.ensure_thumbnail()
+            result.append({'pk': i.pk, 'filename': i.filename, 'original_filename': f.name, 'thumbnail': i.get_thumbnail_url()})
 
         if ajax:
             return AjaxResponse(result)

@@ -10,11 +10,15 @@
 <h1>{{ year }}</h1>
 <h2>{{ album }}</h2>
 <p><a href="{% url 'album_update' year=year.slug album=album.slug %}">Edit...</a></p>
-<p>Upload more images: <input type="file" multiple="multiple" onchange="handle_files(this.files)" /></p>
+<form action="upload/" method="post" enctype="multipart/form-data" onsubmit="handle_files(this.filesField)">
+{% csrf_token %}
+<p>Upload more images: <input type="file" name="filesField" multiple="multiple" onchange="handle_files(this)" /></p>
+<p id="upload_progress"></p>
+</form>
 <ul class="imagegrid">
 {% for image in image_list %}
 <li data-pk="{{ image.pk }}">
-<img src="{{ image.get_image_url }}" />
+<img src="{{ image.get_thumbnail_url }}" />
 </li>
 {% endfor %}
 </ul>

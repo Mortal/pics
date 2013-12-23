@@ -87,3 +87,7 @@ STATIC_URL = '/static/'
 # Uploaded files
 MEDIA_ROOT = os.path.join(BASE_DIR, '..', 'media', '')
 MEDIA_URL = '/media/'
+
+# Pics
+THUMBNAIL_WIDTH = 200
+THUMBNAIL_HEIGHT = 150
