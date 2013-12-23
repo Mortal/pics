@@ -1,6 +1,9 @@
+import wand.image
 from django.db import models
 from django.core.urlresolvers import reverse
 from django.core.files.storage import default_storage
+import re
+import datetime
 
 class Year(models.Model):
     number = models.CharField(max_length=40, unique=True)
@@ -55,8 +58,14 @@ class Image(models.Model):
     def exif_datetime(self):
         try:
             with default_storage.open(self.get_local_path()) as f:
-                with Image(file=f) as img:
-                    return img.metadata['exif:DateTimeOriginal']
+                with wand.image.Image(file=f) as img:
+                    timestring = img.metadata['exif:DateTimeOriginal']
+                    o = re.match(r'(....):(..):(..) (..):(..):(..)', timestring)
+                    if not o:
+                        return None
+                    else:
+                        return datetime.datetime(*[int(o.group(1+i))
+                            for i in range(6)])
         except FileNotFoundError:
             return None
 

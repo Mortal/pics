@@ -10,7 +10,7 @@
 <h1>{{ year }}</h1>
 <h2>{{ album }}</h2>
 <p><a href="{% url 'album_update' year=year.slug album=album.slug %}">Edit...</a></p>
-<p><input type="file" multiple="multiple" onchange="handle_files(this.files)" /></p>
+<p>Upload more images: <input type="file" multiple="multiple" onchange="handle_files(this.files)" /></p>
 <ul class="imagegrid">
 {% for image in image_list %}
 <li data-pk="{{ image.pk }}">

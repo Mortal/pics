@@ -180,3 +180,35 @@ class ImageRepositionView(View):
                 Image.objects.filter(pk=pk).update(position=position)
 
         return AjaxResponseOK()
+
+class ImageSortView(View):
+    def post(self, request, **kwargs):
+        self.request = request
+        self.kwargs = kwargs
+
+        album = get_object_or_404(Album, 
+                year__slug=self.kwargs['year'],
+                slug=self.kwargs['album'])
+
+        if 'by_name' in request.POST:
+            key = lambda image: image.filename
+        elif 'by_time' in request.POST:
+            def force_naive(dt):
+                return dt.replace(tzinfo=None)
+            key = lambda image: force_naive(image.exif_datetime or image.mtime)
+        else:
+            return AjaxBadRequest('You must specify by_name or by_time')
+
+        images = list(album.image_set.all())
+        images.sort(key=key)
+        pos = 1
+        with transaction.commit_on_success():
+            for image in images:
+                image.position = pos
+                image.save()
+                pos += 1
+
+        return HttpResponseRedirect(self.get_success_url())
+
+    def get_success_url(self):
+        return reverse('pics_album', kwargs=self.kwargs)

@@ -5,6 +5,7 @@ from .views import (
         YearCreateView, YearUpdateView,
         AlbumCreateView, AlbumUpdateView,
         ImageUploadView, ImageRepositionView,
+        ImageSortView,
         )
 
 
@@ -18,4 +19,5 @@ urlpatterns = patterns('',
     url(r'^(?P<year>[\w_-]+)/(?P<album>[\w_-]+)/$', ImageListView.as_view(), name='pics_album'),
     url(r'^(?P<year>[\w_-]+)/(?P<album>[\w_-]+)/table/$', ImageTableView.as_view(), name='image_table'),
     url(r'^(?P<year>[\w_-]+)/(?P<album>[\w_-]+)/reorder/$', ImageRepositionView.as_view(), name='image_reposition'),
+    url(r'^(?P<year>[\w_-]+)/(?P<album>[\w_-]+)/sort/$', ImageSortView.as_view(), name='image_sort'),
 )

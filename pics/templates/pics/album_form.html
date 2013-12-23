@@ -6,7 +6,12 @@
 <input type="submit" value="Create/update" />
 </form>
 {% if album %}
+<form method="post" action="{% url 'image_sort' year=year.slug album=album.slug %}">{% csrf_token %}
+    <input type="submit" name="by_name" value="Sort by filename" />
+    <input type="submit" name="by_time" value="Sort by time" />
+</form>
 <form method="post" enctype="multipart/form-data" action="{% url 'image_upload' year=year.slug album=album.slug %}">{% csrf_token %}
+Select images to upload:
 <input multiple="multiple" type="file" name="image" />
 <input type="submit" value="Upload" />
 </form>
