@@ -12,7 +12,9 @@
     line-height: 148px;
     float: left;
     border: 1px solid #333333;
+    border-color: rgba(255,255,255, 0.2);
     background-color: #111111;
+    background-color: rgba(255,255,255, 0.05);
     position: relative;
     text-align: center;
 }

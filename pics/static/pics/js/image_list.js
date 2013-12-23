@@ -51,13 +51,60 @@ $.ajaxSetup({
 // end snippet from Django
 ///////////////////////////////////////////////////////////////////////////////
 
-function post_positions() {
+function Image(element) {
+  if (element == null) {
+    var img = document.createElement('img');
+    element = document.createElement('li');
+    element.appendChild(img);
+  }
+  this.element = element;
+  this.imgElement = element.querySelector('img');
+}
+
+function get_data_attribute(attribute) {
+  return function get_attribute() {
+    if (this.element.hasAttribute('data-'+attribute))
+      return this.element.getAttribute('data-'+attribute);
+    else
+      return null;
+  };
+}
+
+function set_data_attribute(attribute) {
+  return function set_attribute(value) {
+    if (value == null)
+      this.element.removeAttribute('data-'+attribute);
+    else
+      this.element.setAttribute('data-'+attribute, value);
+  };
+}
+
+Image.prototype.get_pk = get_data_attribute('pk');
+Image.prototype.set_pk = set_data_attribute('pk');
+
+Image.prototype.get_filename = get_data_attribute('filename');
+Image.prototype.set_filename = set_data_attribute('filename');
+
+Image.prototype.get_uploadindex = get_data_attribute('uploadindex');
+Image.prototype.set_uploadindex = set_data_attribute('uploadindex');
+
+function get_images() {
   var imagegrid = document.getElementsByClassName('imagegrid')[0];
-  var pks = [];
+  var result = [];
   for (var e = imagegrid.firstChild; e != null; e = e.nextSibling) {
-    if (e.nodeType == 1 && e.hasAttribute('data-pk')) {
-      pks.push(e.getAttribute('data-pk'));
-    }
+    if (e.nodeType != 1) continue;
+    result.push(new Image(e));
+  }
+  return result;
+}
+
+function post_positions() {
+  var images = get_images();
+  var pks = [];
+  for (var i = 0, l = images.length; i < l; ++i) {
+    var e = images[i];
+    var pk = e.get_pk();
+    if (pk != null) pks.push(pk);
   }
   $.post('reorder/', {'images': pks.join(',')});
 }
@@ -119,11 +166,9 @@ function is_image(file) {
 }
 
 function make_image_placeholder(file) {
-  var img = document.createElement('img');
-  var li = document.createElement('li');
-  li.setAttribute('data-filename', file.name);
-  li.appendChild(img);
-  document.getElementsByClassName('imagegrid')[0].appendChild(li);
+  var img = new Image();
+  document.getElementsByClassName('imagegrid')[0].appendChild(img.element);
+  img.set_filename(file.name);
   return img;
 }
 
@@ -131,7 +176,7 @@ var readingQueue = new Queue();
 var reader = new FileReader();
 var isReading = false;
 reader.onload = function(e) {
-  var img = readingQueue.top().img;
+  var img = readingQueue.top().img.imgElement;
   img.src = reader.result;
   readingQueue.pop();
   isReading = false;
@@ -154,23 +199,23 @@ var uploadtasks = [];
 var isUploading = false;
 
 function get_next_upload_task_index() {
-  var imagegrid = document.getElementsByClassName('imagegrid')[0];
+  var images = get_images();
   var uploadIndex = null;
-  for (element = imagegrid.firstChild; element != null; element = element.nextSibling) {
-    if (element.nodeType != 1) continue;
-    if (!element.hasAttribute('data-uploadindex')) continue;
-    uploadIndex = element.getAttribute('data-uploadindex');
+  for (var i = 0, l = images.length; i < l; ++i) {
+    var img = images[i];
+    if (img.get_uploadindex() == null) continue;
+    uploadIndex = img.get_uploadindex();
     break;
   }
   return uploadIndex;
 }
 
 function update_upload_progress() {
-  var imagegrid = document.getElementsByClassName('imagegrid')[0];
+  var images = get_images();
   var remaining = 0;
-  for (element = imagegrid.firstChild; element != null; element = element.nextSibling) {
-    if (element.nodeType != 1) continue;
-    if (element.hasAttribute('data-uploadindex')) ++remaining;
+  for (var i = 0, l = images.length; i < l; ++i) {
+    var img = images[i];
+    if (img.get_uploadindex() != null) ++remaining;
   }
   var state;
   if (remaining == 0) {
@@ -251,16 +296,16 @@ ProgressElement.prototype.set = function ProgressElement_set(loaded, total) {
   this.element.value = loaded;
 };
 
-function UploadTask(file, element) {
+function UploadTask(file, image) {
   this.file = file;
-  this.element = element;
+  this.image = image;
 
   this.progress = new ProgressElement();
 
   this.progressOverlay = document.createElement('div');
   this.progressOverlay.className = 'progressoverlay';
   this.progressOverlay.appendChild(this.progress.element);
-  this.element.appendChild(this.progressOverlay);
+  this.image.element.appendChild(this.progressOverlay);
 }
 
 UploadTask.prototype.set_failed_status = function UploadTask_set_failed_status(status) {
@@ -284,26 +329,26 @@ UploadTask.prototype.done = function UploadTask_done(data) {
   if (originalFilename != this.file.name) {
     console.log("UploadTask_done: wrong original filename");
   }
-  this.element.setAttribute('data-pk', pk);
-  this.element.removeChild(this.progressOverlay);
-  this.element.querySelector('img').src = thumbnail;
+  this.image.set_pk(pk);
+  this.image.element.removeChild(this.progressOverlay);
+  this.image.imgElement.src = thumbnail;
   this.progress = null;
   this.remove_from_upload_queue();
 };
 
 UploadTask.prototype.remove_from_upload_queue = function UploadTask_remove() {
-  if (!this.element.hasAttribute('data-uploadindex')) {
+  var uploadIndex = this.image.get_uploadindex();
+  if (uploadIndex == null) {
     console.log("UploadTask.remove_from_upload_queue: not in queue?");
     return;
   }
-  var uploadIndex = this.element.getAttribute('data-uploadindex');
-  this.element.removeAttribute('data-uploadindex');
+  this.image.set_uploadindex(null);
   uploadtasks[uploadIndex] = null;
 };
 
-function upload_image(file, element) {
-  var task = new UploadTask(file, element);
-  element.setAttribute('data-uploadindex', uploadtasks.length);
+function upload_image(file, image) {
+  var task = new UploadTask(file, image);
+  image.set_uploadindex(uploadtasks.length);
   uploadtasks.push(task);
   upload_next();
 }
@@ -315,7 +360,7 @@ function handle_files(filesField) {
     if (!is_image(file)) continue;
     var img = make_image_placeholder(file);
     read_image_into(file, img);
-    upload_image(file, img.parentNode);
+    upload_image(file, img);
   }
   filesField.form.reset();
 }
