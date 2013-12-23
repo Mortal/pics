@@ -1,24 +1,14 @@
-from django.conf import settings
-from django.conf.urls.static import static
 from django.conf.urls import patterns, include, url
-
-from django.contrib import admin
-admin.autodiscover()
 
 from .views import (
         ImageListView, ImageTableView, AlbumListView,
         YearCreateView, YearUpdateView,
         AlbumCreateView, AlbumUpdateView,
-        ImageUploadView,
+        ImageUploadView, ImageRepositionView,
         )
 
 
 urlpatterns = patterns('',
-    # Examples:
-    # url(r'^$', 'pics.views.home', name='home'),
-    # url(r'^blog/', include('blog.urls')),
-
-    url(r'^admin/', include(admin.site.urls)),
     url(r'^$', AlbumListView.as_view(), name='album_list'),
     url(r'^new/$', YearCreateView.as_view(), name='year_create'),
     url(r'^(?P<year>\w+)/edit/$', YearUpdateView.as_view(), name='year_update'),
@@ -27,4 +17,5 @@ urlpatterns = patterns('',
     url(r'^(?P<year>\w+)/(?P<album>\w+)/upload/$', ImageUploadView.as_view(), name='image_upload'),
     url(r'^(?P<year>\w+)/(?P<album>\w+)/$', ImageListView.as_view(), name='pics_album'),
     url(r'^(?P<year>\w+)/(?P<album>\w+)/table/$', ImageTableView.as_view(), name='image_table'),
-) + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    url(r'^(?P<year>\w+)/(?P<album>\w+)/reorder/$', ImageRepositionView.as_view(), name='image_reposition'),
+)

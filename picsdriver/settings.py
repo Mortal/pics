@@ -1,5 +1,5 @@
 """
-Django settings for pics project.
+Django settings for picsdriver project.
 
 For more information on this file, see
 https://docs.djangoproject.com/en/1.6/topics/settings/
@@ -48,9 +48,9 @@ MIDDLEWARE_CLASSES = (
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 )
 
-ROOT_URLCONF = 'pics.urls'
+ROOT_URLCONF = 'picsdriver.urls'
 
-WSGI_APPLICATION = 'pics.wsgi.application'
+WSGI_APPLICATION = 'picsdriver.wsgi.application'
 
 
 # Database
@@ -80,9 +80,10 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/1.6/howto/static-files/
 
+STATIC_ROOT = os.path.join(BASE_DIR, '..', 'static', '')
 STATIC_URL = '/static/'
 
 
 # Uploaded files
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media', '')
+MEDIA_ROOT = os.path.join(BASE_DIR, '..', 'media', '')
 MEDIA_URL = '/media/'

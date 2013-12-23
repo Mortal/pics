@@ -29,6 +29,13 @@
     max-height: 200px;
     margin: -1px;
 }
+#dropupload {
+    border: 3px dashed #cccccc;
+    line-height: 100px;
+    height: 100px;
+    padding: 0 50px;
+    margin: 1em 0;
+}
 </style>
 <script type="text/javascript">
 ///////////////////////////////////////////////////////////////////////////////
@@ -100,12 +107,69 @@ $(function () {
     'stop': function (event, ui) { post_positions(); }
   });
 });
+
+function PriorityList(n) {
+  this._n = n;
+  this._values = new Array(n);
+  this._topprio = n;
+}
+PriorityList.prototype.set = function PriorityList_set(priority, value) {
+  this._values[priority] = value;
+  this._topprio = Math.min(this._topprio, priority);
+  while (this._topprio < this._n && this._values[this._topprio] == null) {
+    this._topprio++;
+  }
+};
+PriorityList.prototype.top = function PriorityList_top() {
+  if (this._topprio == this._n) return null;
+  else return this._values[this._topprio];
+};
+
+var currentFocus = new PriorityList(2);
+$('.imagegrid li').on('mouseover', function () {
+  currentFocus.set(0, this);
+});
+$(window).on('keypress', function (ev) {
+  if (ev.charCode == 'j'.charCodeAt(0)) {
+    //currentFocus.set(
+  }
+});
+window.addEventListener('dragenter', function (event) {
+  $('#dropupload').show();
+}, false);
+window.addEventListener('dragleave', function (event) {
+  if (event.relatedTarget == null) {
+    $('#dropupload').hide();
+  }
+}, false);
+$(function () {
+  var dropbox = document.getElementById('dropupload');
+  dropbox.addEventListener('dragenter', function (event) {
+    console.log('wat');
+    event.preventDefault();
+    event.stopPropagation();
+  }, false);
+  dropbox.addEventListener('dragleave', function (event) {
+    console.log('wat');
+    event.preventDefault();
+    event.stopPropagation();
+  }, false);
+  dropbox.addEventListener('drop', function (event) {
+    console.log('wat');
+    event.preventDefault();
+    event.stopPropagation();
+    console.log(event.dataTransfer.files);
+  }, false);
+});
 </script>
 {% endblock %}
 {% block content %}
 <h1>{{ year }}</h1>
 <h2>{{ album }}</h2>
 <p><a href="{% url 'album_update' year=year.slug album=album.slug %}">Edit...</a></p>
+<div id="dropupload" style="display: none">
+Drag photos here to upload
+</div>
 <ul class="imagegrid">
 {% for image in image_list %}
 <li data-pk="{{ image.pk }}">
