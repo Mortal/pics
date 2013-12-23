@@ -7,7 +7,7 @@ from django.shortcuts import get_object_or_404
 import os
 from django.db import transaction
 import json
-from django.http import HttpResponse
+from django.http import HttpResponse, HttpResponseRedirect
 
 class AlbumForm(forms.ModelForm):
     class Meta:
@@ -88,12 +88,17 @@ class AlbumCreateView(CreateView, SingleAlbumMixin):
         album.save()
         return super(AlbumCreateView, self).form_valid(form)
 
-class ImageUploadForm(forms.Form):
-    image = forms.FileField()
+def AjaxResponse(payload, **kwargs):
+    return HttpResponse(json.dumps(payload), **kwargs)
 
-class ImageUploadView(FormView):
-    form_class = ImageUploadForm
+def AjaxBadRequest(error_message):
+    return AjaxResponse({'error': error_message}, content_type='application/json', status=400)
 
+def AjaxResponseOK():
+    # 204 No Content
+    return HttpResponse(status=204)
+
+class ImageUploadView(View):
     def get_album(self):
         return Album.objects.get(
                 year__slug=self.kwargs['year'],
@@ -105,28 +110,37 @@ class ImageUploadView(FormView):
             'year': album.year.slug,
             'album': album.slug})
 
-    def form_valid(self, form):
+    def post(self, request, **kwargs):
+        self.request = request
+        self.kwargs = kwargs
+
+        ajax = bool(request.GET['ajax']) if 'ajax' in request.GET else False
+
         album = self.get_album()
         directory = album.get_local_directory()
-        f = form.cleaned_data['image']
-        filename = default_storage.get_valid_name(f.name)
-        path = '%s/%s' % (directory, filename)
-        path = default_storage.save(path, f)
-        dir_name, file_name = os.path.split(path)
-        assert dir_name == directory
-        i = Image(album=album, position=0, filename=file_name)
-        i.save()
-        return super(ImageUploadView, self).form_valid(form)
 
-def AjaxResponse(payload, **kwargs):
-    return HttpResponse(json.dumps(payload), **kwargs)
+        files = request.FILES.getlist('image')
+        position = 0
+        for image in album.image_set.all():
+            position = max(position, image.position)
+        position += 1
+        result = []
 
-def AjaxBadRequest(error_message):
-    return AjaxResponse({'error': error_message}, content_type='application/json', status=400)
+        for f in files:
+            filename = default_storage.get_valid_name(f.name)
+            path = '%s/%s' % (directory, filename)
+            path = default_storage.save(path, f)
+            dir_name, file_name = os.path.split(path)
+            assert dir_name == directory
+            i = Image(album=album, position=position, filename=file_name)
+            position += 1
+            i.save()
+            result.append({'pk': i.pk, 'filename': i.filename, 'original_filename': f.name})
 
-def AjaxResponseOK():
-    # 204 No Content
-    return HttpResponse(status=204)
+        if ajax:
+            return AjaxResponse(result)
+        else:
+            return HttpResponseRedirect(self.get_success_url())
 
 class ImageRepositionView(View):
     def post(self, request, **kwargs):

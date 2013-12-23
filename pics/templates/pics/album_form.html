@@ -7,7 +7,7 @@
 </form>
 {% if album %}
 <form method="post" enctype="multipart/form-data" action="{% url 'image_upload' year=year.slug album=album.slug %}">{% csrf_token %}
-<input type="file" name="image" />
+<input multiple="multiple" type="file" name="image" />
 <input type="submit" value="Upload" />
 </form>
 {% endif %}
